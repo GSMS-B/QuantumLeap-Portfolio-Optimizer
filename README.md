@@ -98,8 +98,8 @@ python-dotenv==1.0.0
 ### 1. **Clone & Setup**
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/QuantumLeap_V1.git
-cd QuantumLeap_V1
+git clone https://github.com/GANASYAM-10/QuantumLeap-Portfolio-Optimizer.git
+
 
 # Create virtual environment
 python -m venv venv
