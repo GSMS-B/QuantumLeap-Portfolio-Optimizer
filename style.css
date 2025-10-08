@@ -7,7 +7,7 @@
 
 body {
     font-family: 'Inter', sans-serif;
-    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #1e1b4b 50%, #581c87 75%, #1e1b4b 100%);
+    background: #000;
     background-attachment: fixed;
     color: #f5f5f5;
     line-height: 1.6;
@@ -293,6 +293,9 @@ h1, h2, h3, h4, h5, h6 {
     min-height: 100vh;
     display: flex;
     align-items: center;
+    background: transparent;
+    position: relative;
+    z-index: 10;
 }
 
 .section-title {
@@ -309,8 +312,10 @@ h1, h2, h3, h4, h5, h6 {
 /* Technology Section */
 .tech-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(3, minmax(350px, 1fr));
+    gap: 3rem;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .tech-card {
@@ -344,8 +349,10 @@ h1, h2, h3, h4, h5, h6 {
 /* User Guide Section */
 .guide-steps {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(4, minmax(280px, 1fr));
+    gap: 2.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .step-card {
@@ -420,11 +427,18 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
 }
 
-/* New About Section with Tabs */
+/* New About Section - Horizontal Layout */
 .about-tabs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(3, minmax(350px, 1fr));
+    gap: 2.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.about-tabs .electric-card {
+    min-height: 300px;
+    height: auto;
 }
 
 .about-tab {
@@ -504,15 +518,22 @@ h1, h2, h3, h4, h5, h6 {
 /* New Contact Section with Form */
 .contact-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem;
-    max-width: 1000px;
+    grid-template-columns: repeat(2, minmax(400px, 1fr));
+    gap: 4rem;
+    max-width: 1200px;
     margin: 0 auto;
+    align-items: start;
+}
+
+.contact-form-container.electric-card,
+.contact-info-container.electric-card {
+    min-height: 400px;
+    height: auto;
 }
 
 .contact-form-container,
 .contact-info-container {
-    padding: 2.5rem;
+    padding: 0;
 }
 
 .contact-form-container h3,
@@ -1943,16 +1964,30 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     justify-content: center;
     padding-top: 120px; /* Account for fixed navigation */
+    z-index: 1;
 }
 
-/* Lightning Canvas - More Prominent */
-.lightning-canvas {
-    position: absolute;
+/* Hero Background Layer - Covers entire page */
+.hero-odyssey-section::before {
+    content: '';
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    z-index: 1;
+    height: 100vh;
+    background: #000;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Lightning Canvas - Full Page Coverage */
+.lightning-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 2;
     pointer-events: none;
 }
 
@@ -1981,9 +2016,9 @@ h1, h2, h3, h4, h5, h6 {
     height: 800px;
 }
 
-/* Hero Navigation - Main Navigation Bar */
+/* Hero Navigation - Main Navigation Bar (Non-Sticky) */
 .hero-odyssey-nav {
-    position: fixed;
+    position: absolute;
     top: 1rem;
     left: 50%;
     transform: translateX(-50%);
@@ -2466,14 +2501,17 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Typography */
 .hero-main-title {
+    font-family: 'Bitcount Single Ink', monospace;
     font-size: 3.5rem;
     font-weight: 300;
     margin-bottom: 1rem;
     line-height: 1.1;
+    white-space: nowrap;
     animation: fadeInUp 1s ease 0.2s both;
 }
 
 .hero-main-subtitle {
+    font-family: 'Bitcount Single Ink', monospace;
     font-size: 2.5rem;
     font-weight: 300;
     margin-bottom: 1.5rem;
@@ -2594,14 +2632,14 @@ h1, h2, h3, h4, h5, h6 {
     justify-content: center;
 }
 
-/* Lightning Canvas */
+/* Lightning Canvas - Full Page Coverage (Backup Definition) */
 .lightning-canvas {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    z-index: 1;
+    height: 100vh;
+    z-index: 2;
     pointer-events: none;
 }
 
@@ -2670,7 +2708,7 @@ h1, h2, h3, h4, h5, h6 {
     pointer-events: none !important;
 }
 
-/* LimelightNav Component Styles - Horizontal Liquid Glass Design */
+/* LimelightNav Component Styles - Horizontal Liquid Glass Design (Non-Sticky) */
 .limelight-nav {
     background: transparent;
     backdrop-filter: blur(20px);
@@ -2679,7 +2717,7 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 
         0 8px 32px rgba(0, 0, 0, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    position: fixed;
+    position: absolute;
     top: 1rem;
     right: 2rem;
     z-index: 1000;
@@ -3379,5 +3417,241 @@ h1, h2, h3, h4, h5, h6 {
     
     .hero-odyssey-description {
         font-size: 0.875rem;
+    }
+}
+
+/* ========================================
+   ELECTRIC CARD SYSTEM - LIQUID GLASS WITH ELECTRIC BORDERS
+   ======================================== */
+
+:root {
+    /* Lightning-based electric colors - Hue 216 (blue) */
+    --electric-border-color: hsl(216, 80%, 60%); /* Primary lightning blue */
+    --electric-light-color: hsl(216, 90%, 70%); /* Lighter electric blue */
+    --electric-gradient-color: hsla(216, 80%, 60%, 0.4); /* Semi-transparent electric */
+    --glass-background: rgba(255, 255, 255, 0.05); /* Same as hero button */
+    --glass-border: rgba(255, 255, 255, 0.2); /* Same as hero button */
+}
+
+/* Hidden SVG container */
+.electric-svg-container {
+    position: absolute !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none;
+}
+
+/* Electric Card Container - True Liquid Glass */
+.electric-card {
+    border-radius: 24px;
+    position: relative;
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 250px;
+    height: auto;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.electric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(59, 130, 246, 0.4);
+}
+
+/* Simplified - No inner containers needed for true liquid glass */
+
+/* Electric Glow Effects - DISABLED FOR CLEAN HERO BUTTON STYLE */
+.electric-glow-1 {
+    display: none;
+}
+
+.electric-glow-2 {
+    display: none;
+}
+
+/* Electric Overlay Effects - DISABLED FOR CLEAN HERO BUTTON STYLE */
+.electric-overlay-1 {
+    display: none;
+}
+
+.electric-overlay-2 {
+    display: none;
+}
+
+/* Electric Background Glow - DISABLED FOR CLEAN HERO BUTTON STYLE */
+.electric-bg-glow {
+    display: none;
+}
+
+/* Electric Card Content Container - True Liquid Glass */
+.electric-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    text-align: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* Remove additional overlay to match hero button styling */
+
+/* Electric Glass Tag */
+.electric-tag {
+    background: radial-gradient(
+        47.2% 50% at 50.39% 88.37%,
+        rgba(59, 130, 246, 0.15) 0%,
+        rgba(59, 130, 246, 0) 100%
+    ),
+    rgba(59, 130, 246, 0.08);
+    position: relative;
+    transition: background 0.3s ease;
+    border-radius: 14px;
+    width: fit-content;
+    height: fit-content;
+    padding: 8px 16px;
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.electric-tag:hover {
+    background: radial-gradient(
+        47.2% 50% at 50.39% 88.37%,
+        rgba(59, 130, 246, 0.2) 0%,
+        rgba(59, 130, 246, 0) 100%
+    ),
+    rgba(59, 130, 246, 0.12);
+}
+
+.electric-tag::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1px;
+    background: linear-gradient(
+        150deg,
+        rgba(59, 130, 246, 0.6) 16.73%,
+        rgba(59, 130, 246, 0.1) 30.2%,
+        rgba(59, 130, 246, 0.1) 68.2%,
+        rgba(59, 130, 246, 0.8) 81.89%
+    );
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+    pointer-events: none;
+}
+
+/* Electric Card Typography */
+.electric-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #f5f5f5;
+    margin: 0.5rem 0;
+}
+
+.electric-description {
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+    font-size: 0.9rem;
+    margin-top: auto;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* Electric Card Icon */
+.electric-icon {
+    font-size: 2.5rem;
+    color: var(--electric-border-color);
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
+}
+
+/* Electric Divider */
+.electric-divider {
+    margin: 1rem 0;
+    border: none;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--electric-border-color),
+        transparent
+    );
+    opacity: 0.6;
+}
+
+/* Contact Section Electric Cards */
+.contact-form-container.electric-card .electric-content,
+.contact-info-container.electric-card .electric-content {
+    text-align: left;
+}
+
+.contact-form-container.electric-card .electric-content h3,
+.contact-info-container.electric-card .electric-content h3 {
+    color: #f5f5f5;
+    margin: 1rem 0;
+    font-size: 1.5rem;
+}
+
+/* Responsive Design for Electric Cards */
+@media (max-width: 768px) {
+    .electric-card {
+        padding: 1px;
+    }
+    
+    .electric-content {
+        padding: 1.5rem;
+    }
+    
+    .electric-title {
+        font-size: 1.25rem;
+    }
+    
+    .electric-icon {
+        font-size: 2rem;
+    }
+    
+    /* How-to section responsive */
+    .guide-steps {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
+    
+    /* Technology section responsive */
+    .tech-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* How-to section responsive */
+    .guide-steps {
+        grid-template-columns: 1fr;
+    }
+    
+    /* About section responsive */
+    .about-tabs {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Contact section responsive */
+    .contact-container {
+        grid-template-columns: 1fr;
+        gap: 2rem;
     }
 }
