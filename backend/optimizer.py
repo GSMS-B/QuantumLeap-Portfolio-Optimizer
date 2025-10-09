@@ -353,55 +353,60 @@ class PortfolioOptimizer:
         try:
             logger.info(f"Starting QAOA optimization on {len(valid_portfolios)} valid portfolios using SimpleQAOAOptimizer")
             
-            # Initialize our SimpleQAOAOptimizer
+            # Initialize our SimpleQAOAOptimizer and run QAOA once on the full QUBO
             qaoa_optimizer = SimpleQAOAOptimizer(reps=reps, shots=shots)
-            
-            # Process each valid portfolio
-            portfolios = []
-            for portfolio in valid_portfolios:
-                # Create binary selection vector for this portfolio
+
+            try:
+                # Convert full QUBO matrix to dictionary format expected by SimpleQAOAOptimizer
                 n_assets = qubo_matrix.shape[0]
-                selection = np.zeros(n_assets, dtype=int)
-                for idx in portfolio:
-                    selection[idx] = 1
-                
-                # Extract the submatrix of the QUBO for this portfolio
-                # This is not necessary for our implementation, but we keep it for consistency
-                # with the original code and for potential future use
-                
-                # Solve the QUBO problem using our SimpleQAOAOptimizer
-                try:
-                    # Convert numpy array to dictionary format for SimpleQAOAOptimizer
-                    qubo_dict = {}
-                    for i in range(n_assets):
-                        for j in range(n_assets):
-                            if qubo_matrix[i, j] != 0:
-                                qubo_dict[(i, j)] = float(qubo_matrix[i, j])
-                    
-                    # Solve the QUBO problem
-                    result = qaoa_optimizer.solve_problem(qubo_dict)
-                    
-                    # Extract the best solution and its probability
-                    best_bitstring = result['solution']
-                    best_solution = np.array([int(bit) for bit in best_bitstring])
-                    probability = result.get('probability', 1.0)  # Default to 1.0 if not provided
-                    
-                    # Check if this solution corresponds to a valid portfolio
+                qubo_dict = {}
+                for i in range(n_assets):
+                    for j in range(n_assets):
+                        if qubo_matrix[i, j] != 0:
+                            qubo_dict[(i, j)] = float(qubo_matrix[i, j])
+
+                # Solve the full QUBO problem once
+                logger.info("Running QAOA once on the full QUBO for all valid portfolios")
+                result = qaoa_optimizer.solve_problem(qubo_dict)
+
+                # Result may contain counts or a single best solution; try to extract both
+                portfolios = []
+
+                # If counts are available, iterate over measured bitstrings (sorted by frequency)
+                counts = result.get('counts') or {}
+                if counts:
+                    # Sort bitstrings by descending count
+                    sorted_bitstrings = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+                    for bitstring, count in sorted_bitstrings:
+                        # Convert bitstring to solution vector (reverse to match ordering used elsewhere)
+                        solution = [int(bit) for bit in bitstring[::-1]]
+                        selected_indices = [i for i, bit in enumerate(solution) if bit == 1]
+                        if selected_indices in valid_portfolios:
+                            portfolios.append({
+                                'selection': solution,
+                                'selected_indices': selected_indices,
+                                'probability': count / float(sum(counts.values()))
+                            })
+
+                # Fallback: if no counts, check for single best solution
+                if not portfolios and 'solution' in result:
+                    best_solution = result['solution']
                     selected_indices = [i for i, bit in enumerate(best_solution) if bit == 1]
-                    
                     if selected_indices in valid_portfolios:
                         portfolios.append({
-                            'selection': best_solution.tolist(),
+                            'selection': best_solution,
                             'selected_indices': selected_indices,
-                            'probability': probability
+                            'probability': result.get('probability', 1.0)
                         })
-                        logger.info(f"Found valid portfolio: {selected_indices} with probability {probability}")
-                except Exception as e:
-                    logger.error(f"Error solving QUBO for portfolio {portfolio}: {str(e)}")
-                    continue
-            
-            logger.info(f"SimpleQAOA optimization completed with {len(portfolios)} valid portfolios")
-            return {'portfolios': portfolios}
+
+                logger.info(f"QAOA completed; found {len(portfolios)} valid portfolios from single run")
+                return {'portfolios': portfolios}
+
+            except Exception as e:
+                logger.error(f"Error solving full QUBO with SimpleQAOAOptimizer: {str(e)}")
+                # Fallback to greedy algorithm on valid portfolios
+                logger.info("Falling back to greedy algorithm on valid portfolios")
+                return self._greedy_optimization_on_valid_portfolios(valid_portfolios, qubo_matrix, shots)
         
         except Exception as e:
             logger.error(f"Error in SimpleQAOA optimization: {str(e)}")
