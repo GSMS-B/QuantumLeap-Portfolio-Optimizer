@@ -460,21 +460,21 @@ class SimpleQAOAOptimizer:
         cost_function = self._create_cost_function(hamiltonian, reps)
         
         # Initialize parameters (gamma, beta) for each repetition
-        # Use better initial points instead of random
+        # Use π/4 for both gamma and beta as fixed initial values
         initial_point = np.zeros(2 * reps)
         for i in range(reps):
-            # Initialize gamma close to optimal value for 1-layer QAOA
-            initial_point[i] = 0.8  # gamma
-            # Initialize beta close to optimal value for 1-layer QAOA
-            initial_point[i + reps] = 0.4  # beta
+            # Initialize gamma to π/4 for fast convergence
+            initial_point[i] = np.pi/4  # gamma ≈ 0.785
+            # Initialize beta to π/4 for fast convergence
+            initial_point[i + reps] = np.pi/4  # beta ≈ 0.785
         
         # Select optimizer
         if optimizer_name == 'COBYLA':
             from qiskit_algorithms.optimizers import COBYLA
-            optimizer = COBYLA(maxiter=200, tol=1e-4)
+            optimizer = COBYLA(maxiter=10, tol=1e-4)
         elif optimizer_name == 'SPSA':
             from qiskit_algorithms.optimizers import SPSA
-            optimizer = SPSA(maxiter=100)
+            optimizer = SPSA(maxiter=10)
         else:
             raise ValueError(f"Unsupported optimizer: {optimizer_name}")
         
