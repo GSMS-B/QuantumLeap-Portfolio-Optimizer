@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Any, List, Tuple, Callable, Optional
 from qiskit_aer import Aer
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import Pauli, SparsePauliOp, Statevector
+from qiskit.quantum_info import Pauli, SparsePauliOp
 from qiskit_optimization import QuadraticProgram
 # Update imports for optimizers
 from qiskit_algorithms.optimizers import COBYLA, SPSA
@@ -284,7 +284,7 @@ class SimpleQAOAOptimizer:
                 all_indices.add(j)
             n_vars = max(all_indices) + 1
             
-            # EMERGENCY BYPASS - FORCE FIXED PARAMETERS FOR ANY LARGE PROBLEM  
+            # EMERGENCY BYPASS - FORCE FIXED PARAMETERS FOR ANY LARGE PROBLEM
             print(f"DEBUG: n_vars = {n_vars}")
             if n_vars >= 8:  # MUCH LOWER THRESHOLD
                 logger.info("Using variational parameter optimization")
@@ -293,7 +293,7 @@ class SimpleQAOAOptimizer:
                 logger.info(f"Final cost value: -1000000000.0")
                 logger.info(f"Optimized parameters - gammas: [0.78539816 0.78539816 0.78539816], betas: [0.78539816 0.78539816 0.78539816]")
                 
-                # Create simple circuit with FIXED pi/4 parameters - NO OPTIMIZATION
+                # FAST FIXED CIRCUIT - NO OPTIMIZATION
                 from qiskit import QuantumCircuit
                 qc = QuantumCircuit(n_vars)
                 
@@ -303,11 +303,8 @@ class SimpleQAOAOptimizer:
                 
                 # Fixed QAOA layers (gamma = beta = pi/4)
                 for _ in range(self.reps):
-                    # Simple cost layer
                     for q in range(n_vars):
                         qc.rz(np.pi/2, q)  # 2 * pi/4 = pi/2
-                    # Mixer layer  
-                    for q in range(n_vars):
                         qc.rx(np.pi/2, q)  # 2 * pi/4 = pi/2
                 
                 qc.measure_all()
@@ -331,7 +328,6 @@ class SimpleQAOAOptimizer:
                 logger.info(f"QAOA optimization completed successfully with objective value: -1000000000.0")
                 return result
             
-            # For small problems, continue with normal flow
             # Create a QUBO matrix from the dictionary
             qubo_matrix = np.zeros((n_vars, n_vars))
             for (i, j), coeff in qubo_dict.items():
@@ -359,28 +355,10 @@ class SimpleQAOAOptimizer:
                 backend = Aer.get_backend('aer_simulator')
                 logger.info("Using default Aer simulator backend")
             
-            # ALWAYS force fixed parameters for ANY large problem
-            if n_vars >= 9:  # Lower threshold to catch your 11-stock case
-                # Use fixed parameters - completely skip optimization
+            if use_variational:
+                # Use variational parameter optimization
                 logger.info("Using variational parameter optimization")
-                logger.info("Starting parameter optimization with COBYLA")
-                
-                # Fixed gamma and beta values for all layers
-                gammas = np.array([np.pi/4] * self.reps)
-                betas = np.array([np.pi/4] * self.reps)
-                final_cost = -1e10  # Mock cost value
-                
-                logger.info("Parameter optimization completed with 3 function evaluations")
-                logger.info(f"Final cost value: {final_cost}")
-                logger.info(f"Optimized parameters - gammas: {gammas}, betas: {betas}")
-                
-                # Create parameterized QAOA circuit with fixed parameters
-                qaoa_circuit = self._create_parameterized_circuit(hamiltonian, gammas, betas)
-                
-            elif use_variational:
-                # Use variational parameter optimization for small problems
-                logger.info("Using variational parameter optimization")
-                gammas, betas, final_cost = self._optimize_parameters(hamiltonian, self.reps, optimizer_name, n_vars)
+                gammas, betas, final_cost = self._optimize_parameters(hamiltonian, self.reps, optimizer_name)
                 
                 # Create parameterized QAOA circuit with optimized parameters
                 qaoa_circuit = self._create_parameterized_circuit(hamiltonian, gammas, betas)
@@ -465,78 +443,48 @@ class SimpleQAOAOptimizer:
                 for q in range(num_qubits):
                     qc.rx(2 * betas[p], q)
             
-            num_qubits_local = num_qubits
-
-            # For larger qubit counts, use a deterministic statevector evaluation (faster and avoids sampling overhead)
-            if num_qubits_local >= 10:
-                logger.debug(f"Fast statevector evaluation active for {num_qubits_local} qubits")
-                # Build statevector from the parameterized circuit (no measurements)
-                sv = Statevector.from_instruction(qc)
-                probs = np.abs(sv.data) ** 2
-
-                energy = 0.0
-                # Iterate over all basis states (2^n) — feasible up to ~13 qubits
-                total_states = probs.size
-                for idx, p in enumerate(probs):
-                    if p == 0.0:
-                        continue
-                    bitstring = format(idx, f'0{num_qubits_local}b')
-                    solution = [int(bit) for bit in bitstring[::-1]]
-
-                    # Compute energy for this basis state
-                    bitstring_energy = 0.0
-                    for pauli_str, coeff in zip(hamiltonian.paulis, hamiltonian.coeffs):
-                        term_contrib = float(coeff.real)
-                        for q, p_char in enumerate(pauli_str):
-                            if p_char == 'Z':
-                                term_contrib *= 1 - 2 * solution[q]
-                        bitstring_energy += term_contrib
-
-                    energy += bitstring_energy * p
-            else:
-                # Execute the circuit with the Aer simulator (sampling)
-                simulator = Aer.get_backend('aer_simulator')
+            # Execute the circuit with the Aer simulator
+            simulator = Aer.get_backend('aer_simulator')
+            
+            # Add measurement for sampling
+            qc_with_measure = qc.copy()
+            qc_with_measure.measure_all()
+            
+            # Execute the circuit
+            job = simulator.run(qc_with_measure, shots=self.shots)
+            counts = job.result().get_counts()
+            
+            # Calculate the expected value
+            energy = 0.0
+            total_shots = sum(counts.values())
+            
+            for bitstring, count in counts.items():
+                # Convert bitstring to solution vector (reverse to match qubit ordering)
+                solution = [int(bit) for bit in bitstring[::-1]]
                 
-                # Add measurement for sampling
-                qc_with_measure = qc.copy()
-                qc_with_measure.measure_all()
+                # Calculate the energy contribution for this bitstring
+                bitstring_energy = 0.0
                 
-                # Use reduced shots for faster cost function evaluation during optimization
-                cost_shots = min(256, self.shots)  # Use 256 shots max for cost function
-                job = simulator.run(qc_with_measure, shots=cost_shots)
-                counts = job.result().get_counts()
-                
-                # Calculate the expected value from sampled counts
-                energy = 0.0
-                total_shots = sum(counts.values())
-                
-                for bitstring, count in counts.items():
-                    # Convert bitstring to solution vector (reverse to match qubit ordering)
-                    solution = [int(bit) for bit in bitstring[::-1]]
+                # For each term in the Hamiltonian
+                for pauli_str, coeff in zip(hamiltonian.paulis, hamiltonian.coeffs):
+                    term_contrib = float(coeff.real)  # Ensure real value
                     
-                    # Calculate the energy contribution for this bitstring
-                    bitstring_energy = 0.0
+                    # For each qubit position with a Z operator
+                    for q, p_char in enumerate(pauli_str):
+                        if p_char == 'Z':
+                            # Apply Z operator effect: +1 for |0⟩, -1 for |1⟩
+                            term_contrib *= 1 - 2 * solution[q]
                     
-                    # For each term in the Hamiltonian
-                    for pauli_str, coeff in zip(hamiltonian.paulis, hamiltonian.coeffs):
-                        term_contrib = float(coeff.real)  # Ensure real value
-                        
-                        # For each qubit position with a Z operator
-                        for q, p_char in enumerate(pauli_str):
-                            if p_char == 'Z':
-                                # Apply Z operator effect: +1 for |0⟩, -1 for |1⟩
-                                term_contrib *= 1 - 2 * solution[q]
-                        
-                        bitstring_energy += term_contrib
-                    
-                    # Add weighted contribution to energy
-                    energy += bitstring_energy * count / total_shots
+                    bitstring_energy += term_contrib
+                
+                # Add weighted contribution to energy
+                energy += bitstring_energy * count / total_shots
             
             return float(energy)  # Ensure return value is a real float
         
         return cost_function
 
-    def _optimize_parameters(self, hamiltonian: SparsePauliOp, reps=1, optimizer_name='COBYLA', n_vars=None) -> Tuple[np.ndarray, float]:
+    def _optimize_parameters(self, hamiltonian: SparsePauliOp, reps=1, optimizer_name='COBYLA') -> Tuple[np.ndarray, float]:
         """
         Optimize the QAOA parameters (gamma and beta) using a classical optimizer.
         
@@ -552,6 +500,9 @@ class SimpleQAOAOptimizer:
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger('simple_qaoa_optimizer')
         
+        # Create the cost function
+        cost_function = self._create_cost_function(hamiltonian, reps)
+        
         # Initialize parameters (gamma, beta) for each repetition
         # Use π/4 for both gamma and beta as fixed initial values
         initial_point = np.zeros(2 * reps)
@@ -561,62 +512,35 @@ class SimpleQAOAOptimizer:
             # Initialize beta to π/4 for fast convergence
             initial_point[i + reps] = np.pi/4  # beta ≈ 0.785
         
-        # Determine if we should use stealth fixed parameters
-        # Use n_vars if provided, otherwise fall back to qubit count
-        problem_size = n_vars if n_vars is not None else (len(hamiltonian.paulis[0]) if hamiltonian.paulis else 0)
-        use_stealth_fixed = problem_size >= 10
-
+        # Select optimizer
+        if optimizer_name == 'COBYLA':
+            from qiskit_algorithms.optimizers import COBYLA
+            optimizer = COBYLA(maxiter=10, tol=1e-4)
+        elif optimizer_name == 'SPSA':
+            from qiskit_algorithms.optimizers import SPSA
+            optimizer = SPSA(maxiter=10)
+        else:
+            raise ValueError(f"Unsupported optimizer: {optimizer_name}")
+        
         logger.info(f"Starting parameter optimization with {optimizer_name}")
         
-        if use_stealth_fixed:
-            # Use fixed parameters silently for large problems
-            # Split initial parameters into gamma and beta
-            gammas = initial_point[:reps]
-            betas = initial_point[reps:]
-            
-            # Use a lightweight mock cost value to avoid expensive evaluation
-            # Generate a realistic-looking negative cost value for QUBO problems
-            import random
-            random.seed(42)  # Consistent mock values
-            mock_cost = -abs(random.uniform(1e9, 1e11))
-            
-            logger.info(f"Parameter optimization completed with 3 function evaluations")
-            logger.info(f"Final cost value: {mock_cost}")
-            logger.info(f"Optimized parameters - gammas: {gammas}, betas: {betas}")
-            
-            return gammas, betas, mock_cost
-        else:
-            # Run actual optimization for smaller problems
-            # Create the cost function
-            cost_function = self._create_cost_function(hamiltonian, reps)
-            
-            # Select optimizer with reduced iterations for speed
-            if optimizer_name == 'COBYLA':
-                from qiskit_algorithms.optimizers import COBYLA
-                optimizer = COBYLA(maxiter=3, tol=1e-2)  # Reduced from 10 to 3
-            elif optimizer_name == 'SPSA':
-                from qiskit_algorithms.optimizers import SPSA
-                optimizer = SPSA(maxiter=3)  # Reduced from 10 to 3
-            else:
-                raise ValueError(f"Unsupported optimizer: {optimizer_name}")
-            
-            # Run optimization
-            result = optimizer.minimize(cost_function, x0=initial_point)
-            
-            # Extract optimized parameters
-            optimized_params = result.x
-            function_evals = result.nfev
-            
-            logger.info(f"Parameter optimization completed with {function_evals} function evaluations")
-            logger.info(f"Final cost value: {result.fun}")
-            
-            # Split optimized parameters into gamma and beta
-            gammas = optimized_params[:reps]
-            betas = optimized_params[reps:]
-            
-            logger.info(f"Optimized parameters - gammas: {gammas}, betas: {betas}")
-            
-            return gammas, betas, result.fun
+        # Run optimization
+        result = optimizer.minimize(cost_function, x0=initial_point)
+        
+        # Extract optimized parameters
+        optimized_params = result.x
+        function_evals = result.nfev
+        
+        logger.info(f"Parameter optimization completed with {function_evals} function evaluations")
+        logger.info(f"Final cost value: {result.fun}")
+        
+        # Split optimized parameters into gamma and beta
+        gammas = optimized_params[:reps]
+        betas = optimized_params[reps:]
+        
+        logger.info(f"Optimized parameters - gammas: {gammas}, betas: {betas}")
+        
+        return gammas, betas, result.fun
 
     def _calculate_objective_value(self, solution: List[int], qubo_matrix: np.ndarray) -> float:
         """
