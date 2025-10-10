@@ -438,7 +438,7 @@ class PortfolioOptimizer:
             #     return {'error': error_msg, 'portfolios': []}
 
             # Authentication: Environment variable only
-            api_token = 'r0aL7yBW9h5lYjfNh_4O7qqyoKG1sbDfBqW5hZHDjvUY'  # os.getenv('IBM_QUANTUM_API_KEY')
+            api_token = 'UAANd9UPgc6OpSVeUqXDegY9xhycq-GFDPV8mgkQMnhZ'  # os.getenv('IBM_QUANTUM_API_KEY')
             if not api_token:
                 error_msg = "IBM_QUANTUM_API_KEY environment variable not set"
                 logger.error(error_msg)
