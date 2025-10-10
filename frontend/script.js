@@ -482,7 +482,7 @@ function runOptimizationWithStreaming() {
     console.log('=== END PARAMETER VERIFICATION ===');
     
     // Use streaming endpoint for real-time progress
-    fetch('http://127.0.0.1:5000/optimize-stream', {
+    fetch('http://127.0.0.1:8000/optimize-stream', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1005,7 +1005,7 @@ function formatPercentage(value) {
 // API Functions
 async function fetchAvailableStocks() {
     try {
-        const response = await fetch('http://127.0.0.1:5000/stocks');
+        const response = await fetch('http://127.0.0.1:8000/stocks');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -1033,7 +1033,7 @@ async function runOptimizationAPI(params) {
     // First, fetch available stocks to ensure we only use stocks that exist in the system
     let availableStocks = [];
     try {
-        const response = await fetch('http://127.0.0.1:5000/stocks');
+        const response = await fetch('http://127.0.0.1:8000/stocks');
         if (response.ok) {
             const data = await response.json();
             availableStocks = data.stocks || [];
@@ -1108,7 +1108,7 @@ async function runOptimizationAPI(params) {
         // Update progress to show we're sending the request
         updateProgressBar(20, 'Sending optimization request to server...');
         
-        const response = await fetch('http://127.0.0.1:5000/optimize', {
+        const response = await fetch('http://127.0.0.1:8000/optimize', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

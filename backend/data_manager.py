@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class DataManager:
     """Handles data loading, parsing, and financial metrics calculation"""
     
-    def __init__(self, data_dir: str = 'backend/data'):
+    def __init__(self, data_dir: str = 'data'):
         """Initialize the DataManager with the data directory path"""
         self.data_dir = data_dir
         logger.info(f"DataManager initialized with data directory: {data_dir}")
