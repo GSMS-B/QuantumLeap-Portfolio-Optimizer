@@ -6,7 +6,7 @@ import logging
 import numpy as np
 from datetime import datetime
 import time
-from analysis_service import get_google_ai_analysis
+from .analysis_service import get_google_ai_analysis
 
 # Custom JSON encoder to handle special values
 class CustomJSONEncoder(json.JSONEncoder):
@@ -20,7 +20,8 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super(CustomJSONEncoder, self).default(obj)
 
 # Import backend modules
-from backend.data_manager import DataManager
+# from backend.data_manager import DataManager
+from .data_manager import DataManager
 from backend.optimizer import PortfolioOptimizer
 from backend.visualization import VisualizationDataGenerator
 
