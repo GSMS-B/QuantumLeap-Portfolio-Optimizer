@@ -20,10 +20,16 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super(CustomJSONEncoder, self).default(obj)
 
 # Import backend modules
+<<<<<<< HEAD
 # from backend.data_manager import DataManager
 from .data_manager import DataManager
 from backend.optimizer import PortfolioOptimizer
 from backend.visualization import VisualizationDataGenerator
+=======
+from data_manager import DataManager
+from optimizer import PortfolioOptimizer
+from visualization import VisualizationDataGenerator
+>>>>>>> d74c1b5405f45cd451fe5783d915d76d83168c0a
 
 # Configure logging
 logging.basicConfig(
@@ -33,12 +39,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
-app = Flask(__name__, static_url_path='', static_folder='.')
+# Configure to serve frontend files from parent directory's frontend folder
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend')
+app = Flask(__name__, static_url_path='', static_folder=frontend_path)
 app.json_encoder = CustomJSONEncoder  # Use custom JSON encoder to handle special values
 CORS(app)  # Enable CORS for all routes
 
 # Initialize backend components
-data_manager = DataManager(data_dir='backend/data')
+data_manager = DataManager(data_dir='data')
 optimizer = PortfolioOptimizer()
 vis_generator = VisualizationDataGenerator()
 
@@ -421,16 +429,15 @@ def generate_analysis():
 # Run the app
 if __name__ == '__main__':
     # Create data directory if it doesn't exist
-    os.makedirs('backend/data', exist_ok=True)
+    os.makedirs('data', exist_ok=True)
     
     # Serve static files
     @app.route('/')
     def index():
         return app.send_static_file('index.html')
-    
     @app.route('/test_frontend.html')
     def test_frontend():
         return app.send_static_file('test_frontend.html')
     
     # Run the Flask app
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=8000)

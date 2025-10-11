@@ -6,9 +6,10 @@
 # 🔬 QUANTUM COMPUTING STACK
 # =============================================================================
 qiskit==1.0.2                    # IBM Quantum SDK (latest stable)
-qiskit-aer==0.13.3               # High-performance quantum simulator
-qiskit-ibm-runtime==0.20.0       # IBM Quantum cloud access
-qiskit-optimization==0.6.0       # Optimization algorithms for Qiskit
+qiskit-aer>=0.14.0               # High-performance quantum simulator (compatible with Qiskit 1.x)
+qiskit-ibm-runtime>=0.20.0       # IBM Quantum cloud access
+qiskit-optimization>=0.6.0       # Optimization algorithms for Qiskit
+qiskit-algorithms>=0.3.0         # Quantum algorithms including QAOA
 
 # =============================================================================
 # 🌐 WEB FRAMEWORK & API

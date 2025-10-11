@@ -37,7 +37,7 @@ function triggerGoogleAnalysis() {
 
   console.log('Sending data for Google AI analysis:', dataToSend);
 
-  fetch('http://127.0.0.1:5000/generate-google-analysis', {
+  fetch('http://127.0.0.1:8000/generate-google-analysis', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
