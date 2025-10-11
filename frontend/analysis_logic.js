@@ -76,17 +76,15 @@ function triggerGoogleAnalysis() {
 // Wait for the DOM to be fully loaded before attaching event listeners
 document.addEventListener('DOMContentLoaded', function() {
     // Find the existing buttons and attach event listeners
-    const regularAnalysisButton = document.querySelector('.ai-button.regular-analysis');
     const googleAnalysisButton = document.querySelector('.ai-button.google-analysis');
     
-    if (regularAnalysisButton && googleAnalysisButton) {
+    if (googleAnalysisButton) {
         // Attach event listeners to the existing buttons
-        regularAnalysisButton.addEventListener('click', triggerAnalysis);
         googleAnalysisButton.addEventListener('click', triggerGoogleAnalysis);
         
-        console.log('Analysis buttons event listeners attached');
+        console.log('Google Analysis button event listener attached');
     } else {
-        console.error('Analysis buttons not found');
+        console.error('Google Analysis button not found');
     }
     
     // Add event listeners to close the modal
@@ -123,9 +121,11 @@ function triggerAnalysis() {
     
     // Show the loading state
     const button = document.querySelector('.ai-button.regular-analysis');
-    const originalButtonText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-    button.disabled = true;
+    if (button) {
+        const originalButtonText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        button.disabled = true;
+    }
     
     // Show the modal with loading state
     const modal = document.getElementById('analysis-modal');
@@ -353,7 +353,7 @@ function triggerAnalysis() {
         } finally {
             // Reset the button state
             const regularButton = document.querySelector('.ai-button.regular-analysis');
-            if (regularButton) {
+            if (regularButton && typeof originalButtonText !== 'undefined') {
                 regularButton.innerHTML = originalButtonText;
                 regularButton.disabled = false;
             }
