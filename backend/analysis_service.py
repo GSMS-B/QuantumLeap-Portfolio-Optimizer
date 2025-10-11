@@ -1,250 +1,292 @@
 import os
+import logging
+from typing import Iterable, List, Optional
+
+try:
+    from google import genai  # type: ignore[import]
+    from google.genai import types  # type: ignore[import]
+except ImportError:  # pragma: no cover - the new SDK might not be installed yet
+    genai = None
+    types = None
+
 import requests
-import logging
-import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def create_detailed_analysis_prompt(portfolios: list) -> str:
+    """
+    Creates a detailed, role-playing prompt for the Google Gemini AI
+    to analyze and compare investment portfolios.
+
+    Args:
+        portfolios (list): A list of portfolio dictionaries.
+
+    Returns:
+        str: The formatted prompt string.
+    """
+    prompt_header = (
+        "You are QuantumLeap's portfolio strategist. Deliver a concise briefing on the 10 candidate portfolios using the exact layout below.\n"
+        "No greetings, no objectives, no assumptions—jump straight into the facts.\n"
+        "Headings must appear exactly as written, each followed by bullet points that start with '-'.\n"
+        "Every comparison must cite portfolio numbers and quantify return, volatility, cost, and Sharpe trade-offs.\n"
+        "Highlight cheaper or lower-volatility options whenever they achieve similar returns.\n"
+        "Call out concentration or diversification issues explicitly.\n"
+        "Do not include tables or any additional commentary outside this structure.\n\n"
+        "### Overview\n"
+        "- Two bullets summarizing the state of all portfolios (keep under 25 words each).\n"
+        "### Comparative Insights\n"
+        "- Three to five bullets quantifying head-to-head comparisons across return, volatility, cost, and Sharpe.\n"
+        "### Risk Flags\n"
+        "- Two to four bullets naming specific portfolios with concentration, diversification, or cost concerns.\n"
+        "### Rebalance Ideas\n"
+        "- Two to three bullets suggesting reallocations within the given assets to improve risk-adjusted value.\n"
+        "### Final Recommendation\n"
+        "- Rank the top three portfolios in one bullet each, stating the key metric advantages.\n\n"
+        "--- BEGIN PORTFOLIO DATA ---\n\n"
+    )
+
+    portfolio_details = []
+    for i, p in enumerate(portfolios):
+        assets = p.get('assets', [])
+        weights = p.get('weights', [])
+        
+        # Handle both list and dict formats for weights
+        if isinstance(weights, list) and len(assets) == len(weights):
+            allocations = ', '.join([f"{ticker}: {(weight * 100):.2f}%" for ticker, weight in zip(assets, weights)])
+        elif isinstance(weights, dict):
+            allocations = ', '.join([f"{ticker}: {(weight * 100):.2f}%" for ticker, weight in weights.items()])
+        else:
+            allocations = "N/A"
+
+        detail = (
+            f"**Portfolio {i+1}**\n"
+            f"- **Assets & Allocations:** {allocations}\n"
+            f"- **Expected Annual Return:** {p.get('return', 0) * 100:.2f}%\n"
+            f"- **Annual Volatility (Risk):** {p.get('risk', 0) * 100:.2f}%\n"
+            f"- **Sharpe Ratio:** {p.get('sharpe', 0):.2f}\n"
+            f"- **Estimated Cost:** {p.get('cost', 0):,.2f}\n"
+            f"- **Selection Probability:** {p.get('probability', 0):.4f}\n"
+            f"- **QUBO Objective:** {p.get('qubo_value', 0):,.4f}\n"
+        )
+        portfolio_details.append(detail)
+    
+    prompt_footer = "\n--- END PORTFOLIO DATA ---"
+    
+    return prompt_header + "\n".join(portfolio_details) + prompt_footer
 
 def get_google_ai_analysis(portfolio_data: dict) -> str:
     """
-    Generate a real-time AI-powered analysis of portfolio data using Google API.
+    Generates a real-time AI-powered analysis of portfolio data using the Google Generative AI SDK.
+
     Args:
-        portfolio_data (dict): Portfolio data to analyze
+        portfolio_data (dict): The portfolio data to be analyzed.
+
     Returns:
-        str: The generated analysis text from Google AI
+        str: The generated analysis text from Google AI, or an error/fallback message.
     """
-    # Try multiple environment variable names for flexibility
-    api_key = os.getenv("GOOGLE_QUANTUMLEAP") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_QUANTUMLEAP") or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        logging.error("Google API key not found in environment variables.")
-        return "AI analysis unavailable: API key not configured. Please set GOOGLE_API_KEY environment variable."
+        logger.error("Google API key not found. Set GOOGLE_API_KEY, GOOGLE_QUANTUMLEAP, or GEMINI_API_KEY.")
+        return "AI analysis unavailable: API key not configured on the server."
 
-    # Google AI API endpoint for Gemini 1.5 Flash model
-    url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
-    headers = {"Content-Type": "application/json"}
-    # Clean up portfolio data for prompt
-    def format_portfolios_for_prompt(portfolios):
-        summaries = []
-        for i, portfolio in enumerate(portfolios):
-            assets = portfolio.get('assets', [])
-            weights = portfolio.get('weights', [])
-            allocations = ', '.join([f"{ticker}: {(weight * 100):.2f}%" for ticker, weight in zip(assets, weights)])
-            summary = (
-                f"Portfolio {i+1}:\n"
-                f"  Assets: {', '.join(assets)}\n"
-                f"  Allocations: {allocations}\n"
-                f"  Expected Return: {portfolio.get('return', 0) * 100:.2f}%\n"
-                f"  Risk (Volatility): {portfolio.get('risk', 0) * 100:.2f}%\n"
-                f"  Sharpe Ratio: {portfolio.get('sharpe', 0):.2f}\n"
+    # Extract the list of portfolios
+    portfolios = portfolio_data.get('portfolio_data', {}).get('top_portfolios', [])
+    if not portfolios:
+        portfolios = portfolio_data.get('top_portfolios', [])
+    if not portfolios:
+        logger.warning("[get_google_ai_analysis] No portfolios found in the input data.")
+        return "No portfolio data was provided for analysis."
+
+    prompt = create_detailed_analysis_prompt(portfolios)
+    logger.info("[get_google_ai_analysis] Generated detailed prompt for Gemini.")
+    logger.info("[get_google_ai_analysis] Prompt payload being sent to Gemini:\n%s", prompt)
+
+    model_candidates = _build_model_priority_list()
+
+    if genai is None:
+        logger.error("[get_google_ai_analysis] google-genai SDK is not installed; falling back to REST/static analysis.")
+        rest_text = _generate_via_rest(prompt, api_key, model_candidates)
+        if rest_text:
+            return rest_text
+        return get_static_analysis(portfolio_data)
+
+    client = genai.Client(api_key=api_key)
+
+    generation_config = None
+    if types is not None:
+        generation_config = types.GenerateContentConfig(
+            temperature=0.7,
+            top_p=0.95,
+            max_output_tokens=1536,
+        )
+
+    for model_name in model_candidates:
+        try:
+            logger.info("[get_google_ai_analysis] Attempting Gemini SDK call with model='%s'", model_name)
+            if types is not None:
+                contents = [types.Content(role="user", parts=[types.Part.from_text(prompt)])]
+            else:
+                contents = prompt
+
+            response = client.models.generate_content(
+                model=model_name,
+                contents=contents,
+                config=generation_config,
             )
-            summaries.append(summary)
-        return '\n'.join(summaries)
+            logger.info("[get_google_ai_analysis] SDK call succeeded for model='%s'", model_name)
+            logger.info('[get_google_ai_analysis] Usage metadata: %s', getattr(response, 'usage_metadata', None))
 
-    # Extract portfolios robustly
-    logging.info('[get_google_ai_analysis] Input portfolio_data: %s', portfolio_data)
-    if 'portfolio_data' in portfolio_data and 'top_portfolios' in portfolio_data['portfolio_data']:
-        portfolios = portfolio_data['portfolio_data']['top_portfolios']
-    elif 'top_portfolios' in portfolio_data:
-        portfolios = portfolio_data['top_portfolios']
-    else:
-        portfolios = [portfolio_data]
+            if response and getattr(response, "text", None):
+                return response.text
 
-    logging.info('[get_google_ai_analysis] Extracted portfolios: %s', portfolios)
-    prompt_text = (
-        "You are a financial AI assistant. Analyze and compare the following top 10 optimized portfolios. "
-        "Focus specifically on comparing these portfolios with each other, highlighting which ones offer the best value. "
-        "Identify portfolios that may offer similar returns but at lower risk, or portfolios with better risk-adjusted returns. "
-        "Provide detailed analysis of each portfolio's strengths and weaknesses based on the actual data provided. "
-        "Avoid general investment advice and focus exclusively on analyzing the specific portfolios listed below.\n\n"
-        f"Portfolio Data:\n{format_portfolios_for_prompt(portfolios)}"
-    )
-    logging.info('[get_google_ai_analysis] Prompt text: %s', prompt_text)
+            logger.warning(
+                "[get_google_ai_analysis] SDK model '%s' returned empty text. Continuing to next option.",
+                model_name,
+            )
+        except Exception as sdk_error:
+            error_text = str(sdk_error)
+            logger.warning(
+                "[get_google_ai_analysis] SDK call failed for model='%s': %s",
+                model_name,
+                error_text,
+                exc_info=True,
+            )
+            if "404" not in error_text and "NOT_FOUND" not in error_text:
+                break
+
+    rest_text = _generate_via_rest(prompt, api_key, model_candidates)
+    if rest_text:
+        return rest_text
+
+    logger.warning("[get_google_ai_analysis] All AI generation attempts failed; returning static analysis.")
+    return get_static_analysis(portfolio_data)
+
+
+def _generate_via_rest(prompt: str, api_key: str, model_names: Iterable[str]) -> Optional[str]:
+    """Call Gemini REST endpoints as a fallback path."""
+
     payload = {
         "contents": [
             {
                 "parts": [
-                    {"text": prompt_text}
+                    {"text": prompt}
                 ]
             }
         ],
         "generationConfig": {
             "temperature": 0.7,
-            "maxOutputTokens": 1024
+            "topP": 0.95,
+            "maxOutputTokens": 1536
         }
     }
-    logging.info('[get_google_ai_analysis] Payload: %s', payload)
-    params = {"key": api_key}
-    logging.info('[get_google_ai_analysis] Google API URL: %s', url)
-    logging.info('[get_google_ai_analysis] Google API headers: %s', headers)
-    logging.info('[get_google_ai_analysis] Google API params: %s', params)
 
-    try:
-        # Use Google's Generative AI SDK as shown in the reference code
-        try:
-            import google.generativeai as genai
-            # Configure the Generative AI SDK with the API key
-            genai.configure(api_key=api_key)
-            
-            # Create an instance of the Generative AI model
-            model = genai.GenerativeModel("models/gemini-1.5-flash")
-            
-            # Generate content using the model with the portfolio data prompt
-            response = model.generate_content(prompt_text)
-            
-            # Get the response text
-            analysis_text = response.text
-            
-            # Log usage metadata
-            logging.info('[get_google_ai_analysis] Usage metadata: %s', response.usage_metadata)
-            
-            logging.info('[get_google_ai_analysis] Generated analysis using Gemini 1.5 Flash')
-            return analysis_text
-            
-        except ImportError:
-            # Fall back to REST API if SDK is not available
-            logging.info('[get_google_ai_analysis] Google Generative AI SDK not available, using REST API')
-            response = requests.post(url, headers=headers, json=payload, params=params, timeout=30)
-            logging.info('[get_google_ai_analysis] Google API raw response: %s', response.text)
-            response.raise_for_status()
-            result = response.json()
-            logging.info('[get_google_ai_analysis] Google API parsed response: %s', result)
-            
-            # Extract text from Gemini API response format
-            if 'candidates' in result and result['candidates'] and 'content' in result['candidates'][0]:
-                content = result['candidates'][0]['content']
-                if 'parts' in content and content['parts']:
-                    analysis_text = content['parts'][0].get('text', "No analysis generated.")
-                else:
-                    analysis_text = "No analysis generated."
-            else:
-                analysis_text = "No analysis generated."
-                
-            if not analysis_text or analysis_text == "No analysis generated.":
-                logging.error('[get_google_ai_analysis] Google API did not return analysis. Full response: %s', result)
-            else:
-                logging.info('[get_google_ai_analysis] Google API output: %s', analysis_text)
-            return analysis_text
-            
-    except Exception as e:
-        logging.error('[get_google_ai_analysis] Error calling Google API: %s. Raw response: %s', str(e), getattr(e, 'response', None))
-        
-        # Fallback to mock analysis if API call fails
-        logging.info('[get_google_ai_analysis] Falling back to mock analysis due to API access issues')
-        
-        # Extract portfolio information for the mock analysis
-        portfolio_summaries = []
-        if 'portfolio_data' in portfolio_data and 'top_portfolios' in portfolio_data['portfolio_data']:
-            portfolios = portfolio_data['portfolio_data']['top_portfolios']
-        elif 'top_portfolios' in portfolio_data:
-            portfolios = portfolio_data['top_portfolios']
-        else:
-            portfolios = [portfolio_data]
-            
-        for i, portfolio in enumerate(portfolios):
-            assets = portfolio.get('assets', [])
-            weights = portfolio.get('weights', [])
-            expected_return = portfolio.get('return', 0) * 100
-            risk = portfolio.get('risk', 0) * 100
-            sharpe = portfolio.get('sharpe', 0)
-            
-            portfolio_summaries.append(f"Portfolio {i+1}: {', '.join(assets)} with expected return of {expected_return:.2f}% and risk of {risk:.2f}%")
-        
-        # Generate mock analysis
-        mock_analysis = f"""# AI-Powered Portfolio Analysis
+    headers = {"Content-Type": "application/json"}
 
-## Portfolio Overview
-{chr(10).join(portfolio_summaries)}
+    for model_name in model_names:
+        model_path = model_name if model_name.startswith("models/") else f"models/{model_name}"
+        endpoints = [
+            f"https://generativelanguage.googleapis.com/v1beta/{model_path}:generateContent",
+            f"https://generativelanguage.googleapis.com/v1/{model_path}:generateContent",
+        ]
 
-## Analysis
-The portfolio shows a balanced approach to risk and return. The Sharpe ratio indicates good risk-adjusted returns.
-
-## Recommendations
-1. Consider diversifying further to reduce sector-specific risks
-2. Monitor market conditions regularly and adjust allocations as needed
-3. For long-term investors, this portfolio offers stable growth potential
-4. Short-term investors might want to increase allocation to more liquid assets
-
-## Risk Assessment
-The current volatility level is manageable for most investor profiles. The portfolio demonstrates resilience against market fluctuations while maintaining competitive returns.
-"""
-        
-        logging.info('[get_google_ai_analysis] Generated mock analysis')
-        return mock_analysis
-
-# The Flask route for Google AI analysis is now defined in app.py
-import json
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-def get_ai_analysis(portfolio_data: dict) -> str:
-    logger.info("[get_ai_analysis] Starting analysis generation...")
-    try:
-        logger.info(f"[get_ai_analysis] Received portfolio data: {portfolio_data}")
-        if not isinstance(portfolio_data, dict):
-            logger.error("[get_ai_analysis] Input is not a dictionary.")
-            return "Error: Portfolio data must be a dictionary."
-
-        # Extract top portfolios
-        top_portfolios = []
-        if 'portfolio_data' in portfolio_data:
-            logger.info("[get_ai_analysis] Found 'portfolio_data' key.")
-            top_portfolios = portfolio_data.get('portfolio_data', {}).get('top_portfolios', [])
-        elif 'top_portfolios' in portfolio_data:
-            logger.info("[get_ai_analysis] Found 'top_portfolios' key.")
-            top_portfolios = portfolio_data.get('top_portfolios', [])
-        else:
-            logger.error("[get_ai_analysis] No 'top_portfolios' or 'portfolio_data' key found.")
-            return "Error: No 'top_portfolios' or 'portfolio_data' key found in input."
-
-        logger.info(f"[get_ai_analysis] Extracted top portfolios: {top_portfolios}")
-
-        if not top_portfolios:
-            logger.error("[get_ai_analysis] No portfolio data available for analysis.")
-            return "No portfolio data available for analysis."
-
-        portfolio_summary = []
-        for i, portfolio in enumerate(top_portfolios):
+        for url in endpoints:
             try:
-                expected_return = portfolio.get('return', 0) * 100
-                risk = portfolio.get('risk', 0) * 100
-                sharpe_ratio = portfolio.get('sharpe', 0)
-                weights = portfolio.get('weights', {})
-                allocations = []
-                if isinstance(weights, dict):
-                    allocations = [f"{ticker}: {(weight * 100):.2f}%" for ticker, weight in weights.items()]
-                elif isinstance(weights, list):
-                    # Try to map tickers to weights if possible
-                    tickers = portfolio.get('assets', [])
-                    if len(weights) == len(tickers):
-                        allocations = [f"{ticker}: {(weight * 100):.2f}%" for ticker, weight in zip(tickers, weights)]
-                    else:
-                        allocations = [f"{weight * 100:.2f}%" for weight in weights]
-                summary = f"Portfolio {i+1}:\n"
-                summary += f"Expected Return: {expected_return:.2f}%\n"
-                summary += f"Risk (Volatility): {risk:.2f}%\n"
-                summary += f"Sharpe Ratio: {sharpe_ratio:.2f}\n"
-                summary += f"Allocations: {', '.join(allocations)}\n"
-                portfolio_summary.append(summary)
-                logger.info(f"[get_ai_analysis] Portfolio {i+1} summary: {summary}")
-            except Exception as portfolio_error:
-                logger.error(f"[get_ai_analysis] Error processing portfolio {i+1}: {portfolio_error}")
-                portfolio_summary.append(f"Error processing portfolio {i+1}: {portfolio_error}")
-        logger.info("[get_ai_analysis] Analysis generation complete.")
-        return "\n".join(portfolio_summary)
-    except Exception as e:
-        error_msg = f"[get_ai_analysis] Error generating portfolio analysis: {str(e)}"
-        logger.error(error_msg)
-        return error_msg
-# Fallback logic: Try Google AI, fallback to static if error
+                logger.info("[_generate_via_rest] Attempting REST call: model='%s', url='%s'", model_name, url)
+                response = requests.post(url, headers=headers, params={"key": api_key}, json=payload, timeout=45)
+                if response.status_code == 200:
+                    data = response.json()
+                    text = _extract_text_from_response(data)
+                    if text:
+                        logger.info("[_generate_via_rest] Generated analysis via REST endpoint for model='%s'", model_name)
+                        return text
+                    logger.warning("[_generate_via_rest] REST response missing text content for model='%s': %s", model_name, data)
+                else:
+                    logger.warning("[_generate_via_rest] REST endpoint error for model='%s': %s -> %s", model_name, response.status_code, response.text)
+            except Exception:
+                logger.exception("[_generate_via_rest] Unexpected error while calling url='%s'", url)
+
+    logger.error("[_generate_via_rest] Unable to generate content from REST endpoints.")
+    return None
+
+
+def _extract_text_from_response(result: dict) -> Optional[str]:
+    """Extract the textual response from a Gemini REST response payload."""
+
+    candidates = result.get("candidates") or []
+    for candidate in candidates:
+        content = candidate.get("content", {})
+        parts = content.get("parts", [])
+        for part in parts:
+            text = part.get("text")
+            if text:
+                return text
+    return None
+
+def get_static_analysis(portfolio_data: dict) -> str:
+    """
+    Generates a simple, static summary of the portfolios.
+    This is used as a fallback if the AI analysis fails.
+    """
+    logger.info("[get_static_analysis] Falling back to static analysis.")
+    
+    portfolios = portfolio_data.get('portfolio_data', {}).get('top_portfolios', [])
+    if not portfolios:
+        portfolios = portfolio_data.get('top_portfolios', [])
+    if not portfolios:
+        return "Error: Could not extract portfolio data for static analysis."
+
+    summary_parts = ["**AI Analysis Failed - Displaying Static Summary**\n"]
+    for i, p in enumerate(portfolios):
+        summary = (
+            f"**Portfolio {i+1}**:\n"
+            f"- Return: {p.get('return', 0) * 100:.2f}%\n"
+            f"- Risk: {p.get('risk', 0) * 100:.2f}%\n"
+            f"- Sharpe Ratio: {p.get('sharpe', 0):.2f}\n"
+            f"- Cost: {p.get('cost', 0):,.2f}\n"
+            f"- Allocation Snapshot: {p.get('assets', [])}\n"
+        )
+        summary_parts.append(summary)
+    
+    return "\n".join(summary_parts)
+
+
+def _build_model_priority_list() -> List[str]:
+    """Return an ordered list of Gemini model names to attempt."""
+
+    env_model = os.getenv("GOOGLE_MODEL_NAME")
+    candidates = []
+
+    if env_model:
+        candidates.append(env_model.strip())
+
+    candidates.extend(
+        [
+            "gemini-2.5-flash",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro-latest",
+            "gemini-1.0-pro",
+            "gemini-pro",
+        ]
+    )
+
+    ordered_unique: List[str] = []
+    for name in candidates:
+        if name and name not in ordered_unique:
+            ordered_unique.append(name)
+
+    return ordered_unique
+
+# This function is the main entry point called by the Flask app.
 def get_best_analysis(portfolio_data: dict) -> str:
-    logger.info("[get_best_analysis] Trying Google AI analysis...")
-    google_analysis = get_google_ai_analysis(portfolio_data)
-    if google_analysis and not google_analysis.startswith("Error generating analysis from Google AI") and "API key not found" not in google_analysis and google_analysis.strip():
-        logger.info("[get_best_analysis] Google AI analysis succeeded.")
-        return google_analysis
-    logger.warning(f"[get_best_analysis] Google AI analysis failed, falling back to static analysis. Reason: {google_analysis}")
-    return get_ai_analysis(portfolio_data)
+    """
+    Tries to get analysis from Google AI, falling back to a static summary on failure.
+    """
+    logger.info("[get_best_analysis] Attempting to generate portfolio analysis.")
+    return get_google_ai_analysis(portfolio_data)
