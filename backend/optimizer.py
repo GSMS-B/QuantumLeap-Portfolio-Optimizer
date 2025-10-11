@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import os
 from typing import Dict, List, Tuple, Optional, Any
 import uuid
 from datetime import datetime
@@ -13,7 +14,7 @@ from qiskit.circuit.library import QAOAAnsatz
 from qiskit.quantum_info import SparsePauliOp
 
 # Import our SimpleQAOAOptimizer
-from .simple_qaoa_optimizer import SimpleQAOAOptimizer
+from simple_qaoa_optimizer import SimpleQAOAOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -438,9 +439,9 @@ class PortfolioOptimizer:
             #     return {'error': error_msg, 'portfolios': []}
 
             # Authentication: Environment variable only
-            api_token = 'UAANd9UPgc6OpSVeUqXDegY9xhycq-GFDPV8mgkQMnhZ'  # os.getenv('IBM_QUANTUM_API_KEY')
+            api_token = os.getenv('IBM_QUANTUM_API_KEY')
             if not api_token:
-                error_msg = "IBM_QUANTUM_API_KEY environment variable not set"
+                error_msg = "IBM_QUANTUM_API_KEY environment variable not set. Please configure your IBM Quantum API key."
                 logger.error(error_msg)
                 return {'error': error_msg, 'portfolios': []}
 

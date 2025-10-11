@@ -14,10 +14,11 @@ def get_google_ai_analysis(portfolio_data: dict) -> str:
     Returns:
         str: The generated analysis text from Google AI
     """
-    api_key = os.getenv("GOOGLE_QUANTUMLEAP") or os.getenv("GOOGLE_API_KEY")
+    # Try multiple environment variable names for flexibility
+    api_key = os.getenv("GOOGLE_QUANTUMLEAP") or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
     if not api_key:
         logging.error("Google API key not found in environment variables.")
-        return "Google API key not found. Please set GOOGLE_QUANTUMLEAP or GOOGLE_API_KEY."
+        return "AI analysis unavailable: API key not configured. Please set GOOGLE_API_KEY environment variable."
 
     # Google AI API endpoint for Gemini 1.5 Flash model
     url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"

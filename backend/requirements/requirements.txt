@@ -1,6 +1,6 @@
 # QuantumLeap Portfolio Optimization Platform
-# Python 3.8+ required
-# Last Updated: September 2025
+# 🚀 ONE FILE - ALL FEATURES - COMPLETE INSTALLATION
+# Python 3.11+ required | Last Updated: October 2025
 
 # =============================================================================
 # 🔬 QUANTUM COMPUTING STACK

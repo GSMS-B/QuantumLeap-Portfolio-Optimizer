@@ -2,7 +2,7 @@
 
 import os
 import logging
-from .app import app
+from app import app
 
 # Configure logging
 logging.basicConfig(

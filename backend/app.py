@@ -6,7 +6,7 @@ import logging
 import numpy as np
 from datetime import datetime
 import time
-from .analysis_service import get_google_ai_analysis
+from analysis_service import get_google_ai_analysis
 
 # Custom JSON encoder to handle special values
 class CustomJSONEncoder(json.JSONEncoder):
@@ -20,16 +20,9 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super(CustomJSONEncoder, self).default(obj)
 
 # Import backend modules
-<<<<<<< HEAD
-# from backend.data_manager import DataManager
-from .data_manager import DataManager
-from backend.optimizer import PortfolioOptimizer
-from backend.visualization import VisualizationDataGenerator
-=======
 from data_manager import DataManager
 from optimizer import PortfolioOptimizer
 from visualization import VisualizationDataGenerator
->>>>>>> d74c1b5405f45cd451fe5783d915d76d83168c0a
 
 # Configure logging
 logging.basicConfig(
@@ -440,4 +433,9 @@ if __name__ == '__main__':
         return app.send_static_file('test_frontend.html')
     
     # Run the Flask app
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    # Use environment variables for production deployment
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.getenv('PORT', 8000))
+    
+    if __name__ == '__main__':
+        app.run(debug=debug_mode, host='0.0.0.0', port=port)
