@@ -6,7 +6,7 @@ import logging
 import numpy as np
 from datetime import datetime
 import time
-from analysis_service import get_google_ai_analysis
+from backend.analysis_service import get_google_ai_analysis
 
 # Custom JSON encoder to handle special values
 class CustomJSONEncoder(json.JSONEncoder):
@@ -20,9 +20,9 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super(CustomJSONEncoder, self).default(obj)
 
 # Import backend modules
-from data_manager import DataManager
-from optimizer import PortfolioOptimizer
-from visualization import VisualizationDataGenerator
+from backend.data_manager import DataManager
+from backend.optimizer import PortfolioOptimizer
+from backend.visualization import VisualizationDataGenerator
 
 # Configure logging
 logging.basicConfig(
@@ -32,9 +32,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
-# Configure to serve frontend files from parent directory's frontend folder
-frontend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend')
-app = Flask(__name__, static_url_path='', static_folder=frontend_path)
+# Initialize Flask app
+# Configure to serve frontend files from 'frontend' folder at the same level
+app = Flask(__name__, static_url_path='', static_folder='frontend')
 app.json_encoder = CustomJSONEncoder  # Use custom JSON encoder to handle special values
 CORS(app)  # Enable CORS for all routes
 
@@ -394,7 +394,7 @@ def generate_analysis():
             return jsonify({'error': 'No portfolio data provided'}), 400
         
         # Import the analysis service
-        from analysis_service import get_ai_analysis
+        from backend.analysis_service import get_ai_analysis
         
         # Generate the analysis
         logger.info("Generating AI analysis for portfolio data")

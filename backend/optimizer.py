@@ -14,7 +14,7 @@ from qiskit.circuit.library import QAOAAnsatz
 from qiskit.quantum_info import SparsePauliOp
 
 # Import our SimpleQAOAOptimizer
-from simple_qaoa_optimizer import SimpleQAOAOptimizer
+from backend.simple_qaoa_optimizer import SimpleQAOAOptimizer
 
 logger = logging.getLogger(__name__)
 
