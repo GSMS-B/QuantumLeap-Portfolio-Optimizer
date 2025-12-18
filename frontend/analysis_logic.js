@@ -1,70 +1,70 @@
 // Google AI Analysis button integration is now handled in the main DOMContentLoaded event
 
 function triggerGoogleAnalysis() {
-  // Use the same portfolio data logic as the normal analysis
-  if (!window.optimizationResult || !window.optimizationResult.top_portfolios) {
-    alert('No portfolio data available. Please run optimization first.');
-    return;
-  }
-  const dataToSend = {
-    portfolio_data: {
-      top_portfolios: window.optimizationResult.top_portfolios
+    // Use the same portfolio data logic as the normal analysis
+    if (!window.optimizationResult || !window.optimizationResult.top_portfolios) {
+        alert('No portfolio data available. Please run optimization first.');
+        return;
     }
-  };
-  const button = document.querySelector('.ai-button.google-analysis');
-  const originalButtonText = button.innerHTML;
-  button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Google AI Analysis...';
-  button.disabled = true;
-  
-  // Show the modal with loading state
-  const modal = document.getElementById('analysis-modal');
-  if (modal) {
-    modal.classList.add('active');
-    
-    // Update the modal title for Google AI Analysis
-    const modalTitle = modal.querySelector('.modal-title');
-    if (modalTitle) modalTitle.textContent = 'Portfolio Analysis';
-    
-    // Show loading indicator
-    const loadingElement = modal.querySelector('.analysis-loading');
-    const errorElement = modal.querySelector('.analysis-error');
-    const contentElement = modal.querySelector('.analysis-content');
-    
-    if (loadingElement) loadingElement.style.display = 'flex';
-    if (errorElement) errorElement.style.display = 'none';
-    if (contentElement) contentElement.style.display = 'none';
-  }
+    const dataToSend = {
+        portfolio_data: {
+            top_portfolios: window.optimizationResult.top_portfolios
+        }
+    };
+    const button = document.querySelector('.ai-button.google-analysis');
+    const originalButtonText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Google AI Analysis...';
+    button.disabled = true;
 
-  console.log('Sending data for Google AI analysis:', dataToSend);
+    // Show the modal with loading state
+    const modal = document.getElementById('analysis-modal');
+    if (modal) {
+        modal.classList.add('active');
 
-  fetch('http://127.0.0.1:8000/generate-google-analysis', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(dataToSend)
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
+        // Update the modal title for Google AI Analysis
+        const modalTitle = modal.querySelector('.modal-title');
+        if (modalTitle) modalTitle.textContent = 'Portfolio Analysis';
+
+        // Show loading indicator
+        const loadingElement = modal.querySelector('.analysis-loading');
+        const errorElement = modal.querySelector('.analysis-error');
+        const contentElement = modal.querySelector('.analysis-content');
+
+        if (loadingElement) loadingElement.style.display = 'flex';
+        if (errorElement) errorElement.style.display = 'none';
+        if (contentElement) contentElement.style.display = 'none';
     }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Received Google AI analysis:', data);
-    updateAnalysisContent(data.analysis);
-  })
-  .catch(error => {
-    console.error('Error generating Google AI analysis:', error);
-    showAnalysisError(`Failed to generate Google AI analysis: ${error.message}`);
-  })
-  .finally(() => {
-    const googleButton = document.querySelector('.ai-button.google-analysis');
-    if (googleButton) {
-      googleButton.innerHTML = originalButtonText;
-      googleButton.disabled = false;
-    }
-  });
+
+    console.log('Sending data for Google AI analysis:', dataToSend);
+
+    fetch('/generate-google-analysis', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dataToSend)
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Received Google AI analysis:', data);
+            updateAnalysisContent(data.analysis);
+        })
+        .catch(error => {
+            console.error('Error generating Google AI analysis:', error);
+            showAnalysisError(`Failed to generate Google AI analysis: ${error.message}`);
+        })
+        .finally(() => {
+            const googleButton = document.querySelector('.ai-button.google-analysis');
+            if (googleButton) {
+                googleButton.innerHTML = originalButtonText;
+                googleButton.disabled = false;
+            }
+        });
 }
 /**
  * Analysis Logic for QuantumLeap Portfolio Optimizer
@@ -74,31 +74,31 @@ function triggerGoogleAnalysis() {
  */
 
 // Wait for the DOM to be fully loaded before attaching event listeners
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Find the existing buttons and attach event listeners
     const googleAnalysisButton = document.querySelector('.ai-button.google-analysis');
-    
+
     if (googleAnalysisButton) {
         // Attach event listeners to the existing buttons
         googleAnalysisButton.addEventListener('click', triggerGoogleAnalysis);
-        
+
         console.log('Google Analysis button event listener attached');
     } else {
         console.error('Google Analysis button not found');
     }
-    
+
     // Add event listeners to close the modal
     const modal = document.getElementById('analysis-modal');
     if (modal) {
         const closeButton = modal.querySelector('.modal-close');
         if (closeButton) {
-            closeButton.addEventListener('click', function() {
+            closeButton.addEventListener('click', function () {
                 modal.classList.remove('active');
             });
         }
-        
+
         // Close modal when clicking outside the content
-        modal.addEventListener('click', function(event) {
+        modal.addEventListener('click', function (event) {
             if (event.target === modal) {
                 modal.classList.remove('active');
             }
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.log('Modal not found in DOM, will be created dynamically if needed');
     }
-}); 
+});
 
 /**
  * Main function to trigger the portfolio analysis
@@ -118,7 +118,7 @@ function triggerAnalysis() {
         alert('No portfolio data available. Please run optimization first.');
         return;
     }
-    
+
     // Show the loading state
     const button = document.querySelector('.ai-button.regular-analysis');
     if (button) {
@@ -126,31 +126,31 @@ function triggerAnalysis() {
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
         button.disabled = true;
     }
-    
+
     // Show the modal with loading state
     const modal = document.getElementById('analysis-modal');
     if (modal) {
         modal.classList.add('active');
-        
+
         // Show loading indicator
         const loadingElement = modal.querySelector('.analysis-loading');
         const errorElement = modal.querySelector('.analysis-error');
         const contentElement = modal.querySelector('.analysis-content');
-        
+
         if (loadingElement) loadingElement.style.display = 'flex';
         if (errorElement) errorElement.style.display = 'none';
         if (contentElement) contentElement.style.display = 'none';
     }
-    
+
     // Prepare the data to send to the backend
     const portfolioData = window.optimizationResult;
-    
+
     // Check if optimization result exists
     if (!portfolioData) {
         showAnalysisError('No optimization results available. Please run optimization first.');
         return;
     }
-    
+
     // For Test Data button, directly display the portfolio data without making an API call
     setTimeout(() => {
         try {
@@ -158,11 +158,11 @@ function triggerAnalysis() {
             const portfolios = portfolioData.top_portfolios;
             console.log('Portfolio data for analysis:', portfolios);
             let formattedPortfolioData = '<h2>Portfolio Test Data</h2>';
-            
+
             portfolios.forEach((portfolio, index) => {
                 if (!portfolio) return;
                 formattedPortfolioData += `<h3>Portfolio ${index + 1}</h3>`;
-                
+
                 // Handle expected return with proper null/NaN checking
                 // Try both expected_return and return fields (backend uses 'return', frontend might expect 'expected_return')
                 const expectedReturn = portfolio.expected_return || portfolio.return;
@@ -172,11 +172,11 @@ function triggerAnalysis() {
                     formattedExpectedReturn = `${(parseFloat(expectedReturn) * 100).toFixed(2)}%`;
                 }
                 formattedPortfolioData += `<p>Expected Return: ${formattedExpectedReturn}</p>`;
-                
+
                 // Handle risk with proper null/NaN checking
                 const risk = portfolio.risk;
                 formattedPortfolioData += `<p>Risk (Volatility): ${(risk !== undefined && risk !== null && !isNaN(parseFloat(risk))) ? parseFloat(risk).toFixed(2) : 'N/A'}%</p>`;
-                
+
                 // Handle sharpe ratio with proper null/NaN checking
                 // Try both sharpe_ratio and sharpe fields (backend uses 'sharpe', frontend might expect 'sharpe_ratio')
                 const sharpeRatio = portfolio.sharpe_ratio || portfolio.sharpe;
@@ -186,12 +186,12 @@ function triggerAnalysis() {
                     formattedSharpeRatio = parseFloat(sharpeRatio).toFixed(2);
                 }
                 formattedPortfolioData += `<p>Sharpe Ratio: ${formattedSharpeRatio}</p>`;
-                
+
                 formattedPortfolioData += '<p>Allocations:</p><ul>';
-                
+
                 // Calculate total allocation to verify it sums to 100%
                 let totalAllocation = 0; // This will track the sum of all allocations
-                
+
                 // Always prioritize using ticker names instead of indices
                 if (portfolio.weights) {
                     // First, try to get the selected assets directly if available
@@ -199,14 +199,14 @@ function triggerAnalysis() {
                         // If we have assets array with ticker names
                         const selectedAssets = portfolio.assets;
                         console.log('Found assets array:', selectedAssets);
-                        
+
                         // Match assets with weights
                         if (Array.isArray(portfolio.weights)) {
                             // If weights is an array, match by index
                             for (let i = 0; i < Math.min(selectedAssets.length, portfolio.weights.length); i++) {
                                 const ticker = selectedAssets[i];
                                 const allocation = portfolio.weights[i];
-                                
+
                                 if (allocation !== undefined && allocation !== null && !isNaN(parseFloat(allocation))) {
                                     const allocationValue = parseFloat(allocation);
                                     totalAllocation += allocationValue;
@@ -220,7 +220,7 @@ function triggerAnalysis() {
                             // If weights is an object, try to match by ticker name
                             for (const ticker of selectedAssets) {
                                 const allocation = portfolio.weights[ticker];
-                                
+
                                 if (allocation !== undefined && allocation !== null && !isNaN(parseFloat(allocation))) {
                                     const allocationValue = parseFloat(allocation);
                                     totalAllocation += allocationValue;
@@ -244,7 +244,7 @@ function triggerAnalysis() {
                             } else {
                                 allocation = portfolio.weights[ticker];
                             }
-                            
+
                             if (allocation !== undefined && allocation !== null && !isNaN(parseFloat(allocation))) {
                                 const allocationValue = parseFloat(allocation);
                                 totalAllocation += allocationValue;
@@ -267,12 +267,12 @@ function triggerAnalysis() {
                         // Fallback if we only have an array of weights without tickers
                         // Try to get tickers from the window.optimizationResult
                         const allTickers = window.optimizationResult.tickers || [];
-                        
+
                         // If we have a selection array, use it to determine which tickers to display
                         if (Array.isArray(portfolio.selection)) {
                             const selection = portfolio.selection;
                             let displayedAssets = 0;
-                            
+
                             for (let i = 0; i < selection.length; i++) {
                                 if (selection[i] === 1 && i < portfolio.weights.length) {
                                     const allocation = portfolio.weights[i];
@@ -291,7 +291,7 @@ function triggerAnalysis() {
                                     }
                                 }
                             }
-                            
+
                             // If no assets were displayed, fall back to showing all weights
                             if (displayedAssets === 0) {
                                 portfolio.weights.forEach((allocation, idx) => {
@@ -330,17 +330,17 @@ function triggerAnalysis() {
                 formattedPortfolioData += `<li><strong>Total Allocation: ${(totalAllocation * 100).toFixed(2)}%</strong></li>`;
                 formattedPortfolioData += '</ul>';
             });
-            
+
             // Update the modal content
             const modal = document.getElementById('analysis-modal');
             if (modal) {
                 // Update the modal title for Test Data
                 const modalTitle = modal.querySelector('.modal-title');
                 if (modalTitle) modalTitle.textContent = 'Portfolio Test Data';
-                
+
                 const loadingElement = modal.querySelector('.analysis-loading');
                 const contentElement = modal.querySelector('.analysis-content');
-                
+
                 if (loadingElement) loadingElement.style.display = 'none';
                 if (contentElement) {
                     contentElement.innerHTML = formattedPortfolioData;
@@ -367,7 +367,7 @@ function triggerAnalysis() {
  */
 function updateAnalysisContent(analysisText) {
     console.log('Updating analysis content with:', analysisText);
-    
+
     const modal = document.getElementById('analysis-modal');
     if (!modal) {
         console.error('Analysis modal not found, initializing it now');
@@ -384,18 +384,18 @@ function updateAnalysisContent(analysisText) {
         // Make sure the modal is visible
         modal.classList.add('active');
     }
-    
+
     // Get the modal again in case it was just initialized
     const currentModal = document.getElementById('analysis-modal');
-    
+
     const loadingElement = currentModal.querySelector('.analysis-loading');
     const errorElement = currentModal.querySelector('.analysis-error');
     const contentElement = currentModal.querySelector('.analysis-content');
-    
+
     // Hide loading and error elements
     if (loadingElement) loadingElement.style.display = 'none';
     if (errorElement) errorElement.style.display = 'none';
-    
+
     // Update and show content
     if (contentElement) {
         // Format the text with markdown-like syntax
@@ -403,19 +403,19 @@ function updateAnalysisContent(analysisText) {
         contentElement.innerHTML = formattedText;
         contentElement.style.display = 'block';
         console.log('Analysis content updated successfully');
-        
+
         // For Test Data button, display raw portfolio data
         if (analysisText.includes('Portfolio Data:')) {
             // Display the raw portfolio data in a more readable format
             const portfolioData = window.optimizationResult.top_portfolios;
             let formattedPortfolioData = '<h2>Portfolio Test Data</h2>';
-            
+
             portfolioData.forEach((portfolio, index) => {
                 formattedPortfolioData += `<h3>Portfolio ${index + 1}</h3>`;
                 formattedPortfolioData += `<p>Expected Return: ${portfolio.expected_return.toFixed(2)}%</p>`;
                 formattedPortfolioData += `<p>Risk (Volatility): ${portfolio.risk.toFixed(2)}%</p>`;
                 formattedPortfolioData += `<p>Sharpe Ratio: ${portfolio.sharpe_ratio.toFixed(2)}</p>`;
-                
+
                 formattedPortfolioData += '<p>Allocations:</p><ul>';
                 for (const [asset, allocation] of Object.entries(portfolio.weights)) {
                     if (allocation > 0) {
@@ -424,7 +424,7 @@ function updateAnalysisContent(analysisText) {
                 }
                 formattedPortfolioData += '</ul>';
             });
-            
+
             contentElement.innerHTML = formattedPortfolioData;
         }
     } else {
@@ -439,15 +439,15 @@ function updateAnalysisContent(analysisText) {
 function showAnalysisError(errorMessage) {
     const modal = document.getElementById('analysis-modal');
     if (!modal) return;
-    
+
     const loadingElement = modal.querySelector('.analysis-loading');
     const errorElement = modal.querySelector('.analysis-error');
     const contentElement = modal.querySelector('.analysis-content');
-    
+
     // Hide loading and content elements
     if (loadingElement) loadingElement.style.display = 'none';
     if (contentElement) contentElement.style.display = 'none';
-    
+
     // Show error message
     if (errorElement) {
         errorElement.textContent = errorMessage;
@@ -462,7 +462,7 @@ function showAnalysisError(errorMessage) {
  */
 function formatAnalysisText(text) {
     if (!text) return '';
-    
+
     // Replace markdown-like syntax with HTML
     return text
         .replace(/# (.+)/g, '<h1>$1</h1>')
@@ -483,28 +483,28 @@ function initializeAnalysisModal() {
         console.log('Analysis modal already exists, skipping initialization');
         return;
     }
-    
+
     console.log('Initializing analysis modal');
-    
+
     // We don't need to create the modal HTML or add CSS styles since they are now in the HTML and CSS files
-    
+
     // Add event listeners to close the modal
     const modal = document.getElementById('analysis-modal');
     if (modal) {
         const closeButton = modal.querySelector('.modal-close');
         if (closeButton) {
-            closeButton.addEventListener('click', function() {
+            closeButton.addEventListener('click', function () {
                 modal.classList.remove('active');
             });
         }
-        
+
         // Close modal when clicking outside the content
-        modal.addEventListener('click', function(event) {
+        modal.addEventListener('click', function (event) {
             if (event.target === modal) {
                 modal.classList.remove('active');
             }
         });
-        
+
         console.log('Analysis modal initialized successfully');
     } else {
         console.error('Failed to find analysis modal element after initialization');
