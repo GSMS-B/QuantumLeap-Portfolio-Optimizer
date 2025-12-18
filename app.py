@@ -39,7 +39,10 @@ app.json_encoder = CustomJSONEncoder  # Use custom JSON encoder to handle specia
 CORS(app)  # Enable CORS for all routes
 
 # Initialize backend components
-data_manager = DataManager(data_dir='data')
+# Use absolute path for data directory to ensure it works regardless of CWD
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(BASE_DIR, 'data')
+data_manager = DataManager(data_dir=data_dir)
 optimizer = PortfolioOptimizer()
 vis_generator = VisualizationDataGenerator()
 
