@@ -422,18 +422,20 @@ def generate_analysis():
             response.headers.add('Access-Control-Allow-Origin', '*')
         return response
 
+# Serve static files (Moved out of __main__ for Gunicorn)
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
+@app.route('/test_frontend.html')
+def test_frontend():
+    return app.send_static_file('test_frontend.html')
+
 # Run the app
+# Run the Flask app
 if __name__ == '__main__':
     # Create data directory if it doesn't exist
     os.makedirs('data', exist_ok=True)
-    
-    # Serve static files
-    @app.route('/')
-    def index():
-        return app.send_static_file('index.html')
-    @app.route('/test_frontend.html')
-    def test_frontend():
-        return app.send_static_file('test_frontend.html')
     
     # Run the Flask app
     # Use environment variables for production deployment
