@@ -119,14 +119,14 @@ def get_google_ai_analysis(portfolio_data: dict) -> str:
         generation_config = types.GenerateContentConfig(
             temperature=0.7,
             top_p=0.95,
-            max_output_tokens=1536,
+            max_output_tokens=8192,
         )
 
     for model_name in model_candidates:
         try:
             logger.info("[get_google_ai_analysis] Attempting Gemini SDK call with model='%s'", model_name)
             if types is not None:
-                contents = [types.Content(role="user", parts=[types.Part.from_text(prompt)])]
+                contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
             else:
                 contents = prompt
 
@@ -178,7 +178,7 @@ def _generate_via_rest(prompt: str, api_key: str, model_names: Iterable[str]) ->
         "generationConfig": {
             "temperature": 0.7,
             "topP": 0.95,
-            "maxOutputTokens": 1536
+            "maxOutputTokens": 8192
         }
     }
 
@@ -218,10 +218,15 @@ def _extract_text_from_response(result: dict) -> Optional[str]:
     for candidate in candidates:
         content = candidate.get("content", {})
         parts = content.get("parts", [])
+        # Join all text parts, not just the first one
+        full_text = []
         for part in parts:
             text = part.get("text")
             if text:
-                return text
+                full_text.append(text)
+        
+        if full_text:
+            return "".join(full_text)
     return None
 
 def get_static_analysis(portfolio_data: dict) -> str:
@@ -264,6 +269,7 @@ def _build_model_priority_list() -> List[str]:
     candidates.extend(
         [
             "gemini-2.5-flash",
+            "gemma-2-27b-it",
             "gemini-2.5-pro",
             "gemini-2.5-flash-lite",
             "gemini-2.0-flash",
