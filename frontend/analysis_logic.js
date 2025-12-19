@@ -1,6 +1,17 @@
 // Google AI Analysis button integration is now handled in the main DOMContentLoaded event
 
 function triggerGoogleAnalysis() {
+    // Check if we have a cached analysis result
+    if (window.cachedGoogleAnalysis) {
+        console.log('Using cached Google AI analysis');
+        // Show the modal
+        const modal = document.getElementById('analysis-modal');
+        if (modal) {
+            modal.classList.add('active');
+            updateAnalysisContent(window.cachedGoogleAnalysis);
+        }
+        return;
+    }
     // Use the same portfolio data logic as the normal analysis
     if (!window.optimizationResult || !window.optimizationResult.top_portfolios) {
         alert('No portfolio data available. Please run optimization first.');
@@ -52,6 +63,8 @@ function triggerGoogleAnalysis() {
         })
         .then(data => {
             console.log('Received Google AI analysis:', data);
+            // Cache the result
+            window.cachedGoogleAnalysis = data.analysis;
             updateAnalysisContent(data.analysis);
         })
         .catch(error => {
