@@ -14,12 +14,13 @@ scikit-learn==1.3.2
 requests==2.31.0
 
 # Quantum (Qiskit)
-# Quantum (Qiskit Legacy Stable Stack)
-qiskit==0.46.0
-qiskit-aer==0.13.3
-qiskit-ibm-runtime==0.20.0
-qiskit-optimization==0.6.0
-qiskit-algorithms==0.3.0
+# Quantum (Qiskit)
+# Quantum (Qiskit 1.x Stable Stack)
+qiskit>=1.0.0
+qiskit-aer>=0.14.0
+qiskit-ibm-runtime>=0.23.0
+qiskit-optimization>=0.6.0
+qiskit-algorithms>=0.3.0
 
 # Visualization
 matplotlib==3.7.2

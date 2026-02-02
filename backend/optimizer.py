@@ -15,6 +15,7 @@ from qiskit.quantum_info import SparsePauliOp
 
 # Import our SimpleQAOAOptimizer
 from backend.simple_qaoa_optimizer import SimpleQAOAOptimizer
+from qiskit_ibm_runtime import QiskitRuntimeService, Session, SamplerV2
 
 logger = logging.getLogger(__name__)
 
@@ -416,147 +417,178 @@ class PortfolioOptimizer:
             return self._greedy_optimization_on_valid_portfolios(valid_portfolios, qubo_matrix, shots)
     
     def _run_ibm_quantum_hardware_on_valid_portfolios(
-            self,
-            valid_portfolios: List[List[int]],
-            qubo_matrix: np.ndarray,
-            reps: int = 3,
-            shots: int = 1000
-        ) -> Dict[str, Any]:
-        """Run QAOA optimization on valid portfolios using IBM Quantum Hardware (with parameter optimization)."""
+        self,
+        valid_portfolios,
+        qubo_matrix,
+        reps=3,
+        shots=1000
+    ):
+        """
+        Run QAOA on IBM Quantum HARDWARE (Open Plan – Direct Job Execution).
+        Logs Job IDs, per-job execution time, and total execution time.
+        """
+
+        import time
+        import numpy as np
+        from qiskit import QuantumCircuit, transpile
+        from qiskit_ibm_runtime import QiskitRuntimeService
+        from scipy.optimize import minimize
+        from qiskit_ibm_runtime import Sampler
+
+        start_total_time = time.time()
+
         try:
-            import os
-            import numpy as np
-            from qiskit_ibm_runtime import QiskitRuntimeService, Sampler
-            from qiskit import transpile
-            from scipy.optimize import minimize
+            logger.info(f"Starting IBM Quantum QAOA on {len(valid_portfolios)} portfolios")
 
-            logger.info(f"Starting QAOA optimization on {len(valid_portfolios)} valid portfolios")
+            # 🔐 API key (Open plan)
+            api_token = "I-FgdpO98DAVy40foN6QMKjgyn9uxZrs6sOQs-384OFH"#"I-FgdpO98DAVy40foN6QMKjgyn9uxZrs6sOQs-384OFH"
+            service = QiskitRuntimeService(
+                channel="ibm_cloud",
+                token=api_token
+            )
 
-            # Check connectivity first
-            # if not self._check_ibm_connectivity():
-            #     error_msg = "IBM Quantum services are not accessible. Please check your network connection and firewall settings."
-            #     logger.error(error_msg)
-            #     return {'error': error_msg, 'portfolios': []}
-
-            # Authentication: Environment variable only
-            api_token = os.getenv('IBM_QUANTUM_API_KEY')
-            if not api_token:
-                error_msg = "IBM_QUANTUM_API_KEY environment variable not set. Please configure your IBM Quantum API key."
-                logger.error(error_msg)
-                return {'error': error_msg, 'portfolios': []}
-
-            # Initialize service
-            service = QiskitRuntimeService(channel='ibm_cloud', token=api_token)
-
-            # Backend selection
+            # 🎯 Select real hardware
             n_assets = qubo_matrix.shape[0]
-            backend = service.least_busy(min_num_qubits=n_assets, simulator=False, operational=True)
-            logger.info(f"Selected IBM backend: {backend.name}")
+            backend = service.least_busy(
+                min_num_qubits=n_assets,
+                simulator=False,
+                operational=True
+            )
 
-            # Helper: create QAOA circuit
-            def create_qaoa_circuit(n_qubits, beta, gamma, Q):
-                from qiskit import QuantumCircuit, ClassicalRegister, QuantumRegister
-                qreg = QuantumRegister(n_qubits, 'q')
-                creg = ClassicalRegister(n_qubits, 'meas')
-                qc = QuantumCircuit(qreg, creg)
+            logger.info(f"Selected IBM Quantum backend: {backend.name}")
 
-                # Initial superposition
-                qc.h(qreg)
+            # ✅ OPEN PLAN: Sampler WITHOUT session
+            # sampler = Sampler(backend=backend)
 
-                # Cost layer
-                for i in range(n_qubits):
-                    if abs(Q[i, i]) > 1e-12:
-                        qc.rz(2 * gamma * Q[i, i], qreg[i])
-                for i in range(n_qubits):
-                    for j in range(i + 1, n_qubits):
-                        if abs(Q[i, j]) > 1e-12:
-                            qc.cx(qreg[i], qreg[j])
-                            qc.rz(2 * gamma * Q[i, j], qreg[j])
-                            qc.cx(qreg[i], qreg[j])
+            sampler = Sampler(mode=backend)
 
-                # Mixer
-                for i in range(n_qubits):
-                    qc.rx(2 * beta, qreg[i])
 
-                qc.measure(qreg, creg)
+            # -----------------------------
+            # QAOA Circuit Builder
+            # -----------------------------
+            def create_qaoa_circuit(n, beta, gamma, Q):
+                qc = QuantumCircuit(n, n)
+                qc.h(range(n))
+
+                for i in range(n):
+                    if abs(Q[i, i]) > 1e-9:
+                        qc.rz(2 * gamma * Q[i, i], i)
+
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        if abs(Q[i, j]) > 1e-9:
+                            qc.cx(i, j)
+                            qc.rz(2 * gamma * Q[i, j], j)
+                            qc.cx(i, j)
+
+                for i in range(n):
+                    qc.rx(2 * beta, i)
+
+                qc.measure(range(n), range(n))
                 return qc
 
-            # Initialize sampler
-            sampler = Sampler(backend)
-
-            # Evaluation function for parameter optimization
-            def evaluate_qaoa_ibm(params, Q, n_qubits, sampler):
+            # -----------------------------
+            # Objective function
+            # -----------------------------
+            def evaluate_qaoa(params):
                 beta, gamma = params
-                qc = create_qaoa_circuit(n_qubits, beta, gamma, Q)
-                transpiled_qc = transpile(qc, backend, optimization_level=1)
-                job = sampler.run([transpiled_qc], shots=shots)
-                logger.info(f"Optimization job submitted: {job.job_id()}")
-                result = job.result()
+                qc = create_qaoa_circuit(n_assets, beta, gamma, qubo_matrix)
+                tqc = transpile(qc, backend, optimization_level=1)
 
-                # Extract counts from the result
-                counts = result[0].data.meas.get_counts()
+                job_start = time.time()
+                job = sampler.run([(tqc, None, shots)])
+                result = job.result()
+                job_end = time.time()
+
+                logger.info(
+                    f"Job ID: {job.job_id()} | "
+                    f"Execution time: {job_end - job_start:.2f} sec"
+                )
+
+                # counts = result[0].data.meas.get_counts()
+                counts = result[0].data.c.get_counts()
 
                 expectation = 0.0
-                total_shots = sum(counts.values())
+                total = sum(counts.values())
                 for bitstring, count in counts.items():
-                    x = np.array([int(b) for b in bitstring])
-                    energy = float(x @ Q @ x)
-                    probability = count / total_shots
-                    expectation += energy * probability
+                    x = np.array(list(map(int, bitstring)))
+                    energy = x @ qubo_matrix @ x
+                    expectation += energy * (count / total)
+
                 return expectation
 
-            # Optimize parameters
+            # -----------------------------
+            # Classical optimization
+            # -----------------------------
             initial_params = [np.pi / 4, np.pi / 4]
-            result = minimize(
-                evaluate_qaoa_ibm,
+
+            opt_result = minimize(
+                evaluate_qaoa,
                 initial_params,
-                args=(qubo_matrix, n_assets, sampler),
-                method='COBYLA',
-                options={'maxiter': reps}
+                method="COBYLA",
+                options={"maxiter": reps}
             )
-            
-            logger.info(f"Optimal parameters found: β={result.x[0]:.4f}, γ={result.x[1]:.4f}")
 
-            # Final run with optimal parameters
-            beta_opt, gamma_opt = result.x
+            logger.info(
+                f"Optimal parameters: β={opt_result.x[0]:.4f}, γ={opt_result.x[1]:.4f}"
+            )
+
+            # -----------------------------
+            # Final job
+            # -----------------------------
+            beta_opt, gamma_opt = opt_result.x
             final_circuit = create_qaoa_circuit(n_assets, beta_opt, gamma_opt, qubo_matrix)
-            final_transpiled = transpile(final_circuit, backend, optimization_level=1)
-            final_job = sampler.run([final_transpiled], shots=shots)
-            logger.info(f"Optimization job submitted: {final_job.job_id()}")
+            final_tqc = transpile(final_circuit, backend, optimization_level=1)
+
+            final_start = time.time()
+            # final_job = sampler.run([final_tqc], shots=shots)
+            final_job = sampler.run([(final_tqc, None, shots)])
             final_result = final_job.result()
+            final_end = time.time()
 
-            final_counts = final_result[0].data.meas.get_counts()
+            logger.info(
+                f"Final Job ID: {final_job.job_id()} | "
+                f"Execution time: {final_end - final_start:.2f} sec"
+            )
 
-            # Convert counts to portfolio format (as in Code 1)
+            # final_counts = final_result[0].data.meas.get_counts()
+            final_counts = final_result[0].data.c.get_counts()
+
             portfolios = []
-            total_final_shots = sum(final_counts.values())
+            total_shots = sum(final_counts.values())
+
             for bitstring, count in final_counts.items():
-                selection = np.array([int(bit) for bit in bitstring[::-1]])  # reverse order
-                selected_indices = [i for i, bit in enumerate(selection) if bit == 1]
-                if selected_indices in valid_portfolios:
+                selection = np.array(list(map(int, bitstring[::-1])))
+                selected = [i for i, b in enumerate(selection) if b == 1]
+
+                if selected in valid_portfolios:
                     portfolios.append({
-                        'selection': selection.tolist(),
-                        'selected_indices': selected_indices,
-                        'probability': count / total_final_shots
+                        "selection": selection.tolist(),
+                        "selected_indices": selected,
+                        "probability": count / total_shots
                     })
 
-            logger.info(f"IBM Quantum Hardware optimization completed with {len(portfolios)} valid portfolios")
-            return {'portfolios': portfolios, 'job_id': final_job.job_id(), 'backend': backend.name}
+            total_time = time.time() - start_total_time
+            logger.info(f"TOTAL EXECUTION TIME: {total_time:.2f} sec")
 
-        # except Exception as e:
-        #     logger.error(f"Error in IBM Quantum Hardware optimization: {str(e)}")
-        #     return {'error': str(e), 'portfolios': []}
-                                                                         
+            return {
+                "backend": backend.name,
+                "job_id": final_job.job_id(),
+                "execution_time_sec": total_time,
+                "portfolios": portfolios
+            }
+
         except Exception as e:
-            logger.error(f"Error in IBM Quantum Hardware optimization: {str(e)}")
-            # Fallback to Aer simulator
-            logger.info("Falling back to Aer simulator due to error")
+            logger.error(f"IBM Quantum execution failed: {str(e)}")
+            logger.info("Falling back to Aer simulator")
+
             return self._run_aer_simulator_on_valid_portfolios(
-                valid_portfolios=valid_portfolios,
-                qubo_matrix=qubo_matrix,
-                reps=reps,
-                shots=shots
+                valid_portfolios,
+                qubo_matrix,
+                reps,
+                shots
             )
+
     
     def _greedy_optimization_on_valid_portfolios(self,
                                                valid_portfolios: List[List[int]],
