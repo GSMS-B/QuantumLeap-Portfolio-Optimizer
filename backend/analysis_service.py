@@ -15,6 +15,9 @@ import requests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+from dotenv import load_dotenv
+load_dotenv()
+
 def create_detailed_analysis_prompt(portfolios: list) -> str:
     """
     Creates a detailed, role-playing prompt for the Google Gemini AI

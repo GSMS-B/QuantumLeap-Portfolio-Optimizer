@@ -19,6 +19,10 @@ from qiskit_ibm_runtime import QiskitRuntimeService, Session, SamplerV2
 
 logger = logging.getLogger(__name__)
 
+from dotenv import load_dotenv
+load_dotenv()
+
+
 class PortfolioOptimizer:
     """Portfolio optimization using QAOA and classical methods - COMPLETELY REWRITTEN"""
     
@@ -353,6 +357,10 @@ class PortfolioOptimizer:
                                               shots: int = 1000) -> Dict[str, Any]:
         """Run QAOA optimization on valid portfolios using Aer Simulator with SimpleQAOAOptimizer"""
         try:
+            import time
+
+            start_time = time.time()
+
             logger.info(f"Starting QAOA optimization on {len(valid_portfolios)} valid portfolios using SimpleQAOAOptimizer")
             
             # Initialize our SimpleQAOAOptimizer and run QAOA once on the full QUBO
@@ -402,6 +410,7 @@ class PortfolioOptimizer:
                         })
 
                 logger.info(f"QAOA completed; found {len(portfolios)} valid portfolios from single run")
+                logger.info(f"Total QAOA execution time: {time.time() - start_time:.2f} seconds")
                 return {'portfolios': portfolios}
 
             except Exception as e:
@@ -441,10 +450,16 @@ class PortfolioOptimizer:
             logger.info(f"Starting IBM Quantum QAOA on {len(valid_portfolios)} portfolios")
 
             # 🔐 API key (Open plan)
-            api_token = "I-FgdpO98DAVy40foN6QMKjgyn9uxZrs6sOQs-384OFH"#"I-FgdpO98DAVy40foN6QMKjgyn9uxZrs6sOQs-384OFH"
+            api_key = os.getenv("QBRAID_API_KEY")
+
+            if not api_key:
+                raise EnvironmentError(
+                    "QBRAID_API_KEY not found. Please set it as an environment variable."
+                )
+            
             service = QiskitRuntimeService(
                 channel="ibm_cloud",
-                token=api_token
+                token=api_key
             )
 
             # 🎯 Select real hardware
