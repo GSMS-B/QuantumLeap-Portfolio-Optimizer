@@ -450,11 +450,11 @@ class PortfolioOptimizer:
             logger.info(f"Starting IBM Quantum QAOA on {len(valid_portfolios)} portfolios")
 
             # 🔐 API key (Open plan)
-            api_key = os.getenv("QBRAID_API_KEY")
+            api_key = os.getenv("IBM_QUANTUM_API_KEY")
 
             if not api_key:
                 raise EnvironmentError(
-                    "QBRAID_API_KEY not found. Please set it as an environment variable."
+                    "IBM_QUANTUM_API_KEY not found. Please set it as an environment variable."
                 )
             
             service = QiskitRuntimeService(
