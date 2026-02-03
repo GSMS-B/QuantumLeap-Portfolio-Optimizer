@@ -45,7 +45,6 @@
 ## 🚀 **Quick Start**
 
 ### **🌐 Try It Live (Recommended)**
-- 
 - **QuantumLeap**: [Deployed on Render](https://quantumleap-optimizer.onrender.com/)
 - **Setup Time**: 5 minutes with our deployment guide
 
