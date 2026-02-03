@@ -4,7 +4,7 @@
 [![Qiskit 1.0+](https://img.shields.io/badge/Qiskit-1.0+-purple.svg)](https://qiskit.org/)
 [![Flask 2.3+](https://img.shields.io/badge/Flask-2.3+-green.svg)](https://flask.palletsprojects.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deploy](https://img.shields.io/badge/Deploy-Render%20%2B%20Vercel-brightgreen.svg)](https://render.com)
+[![Deploy](https://img.shields.io/badge/Deploy-Render-brightgreen.svg)](https://render.com)
 
 > **A quantum-powered portfolio optimization platform that revolutionizes investment strategies using QAOA (Quantum Approximate Optimization Algorithm) and AI-driven market analysis.**
 
