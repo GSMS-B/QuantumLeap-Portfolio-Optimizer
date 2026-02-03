@@ -10,7 +10,7 @@
 
 **🎯 Built for the modern investor:** Combines cutting-edge quantum computing with Google Gemini AI to deliver superior portfolio optimization for the Indian stock market and beyond.
 
-![QuantumLeap Platform](frontend/portfolio_optimization_results.png)
+
 
 ---
 
@@ -45,8 +45,8 @@
 ## 🚀 **Quick Start**
 
 ### **🌐 Try It Live (Recommended)**
-- **Frontend**: [Deploy on Vercel](https://vercel.com) 
-- **Backend**: [Deploy on Render](https://render.com)
+- 
+- **QuantumLeap**: [Deployed on Render](https://quantumleap-optimizer.onrender.com/)
 - **Setup Time**: 5 minutes with our deployment guide
 
 ### **💻 Run Locally**
